@@ -1,0 +1,79 @@
+--- migration/0.32-0.33.sql	2017-03-28 19:51:04.000000000 +0200
++++ migration/0.32-0.33.sql.fix	2017-03-28 19:50:08.000000000 +0200
+@@ -2,11 +2,11 @@
+ SET FOREIGN_KEY_CHECKS = 0;
+ SET SQL_MODE = '';
+ 
+-# Deleted Tables
++# Rename Tables
+ 
+--- deleted table `chosen_inline_query`
++RENAME TABLE `chosen_inline_query` TO `chosen_inline_result`;
+ 
+-DROP TABLE `chosen_inline_query`;
++# Deleted Tables
+ 
+ # Changed Tables
+ 
+@@ -26,6 +26,16 @@
+   CHANGE COLUMN `title` `title` char(255) COLLATE utf8mb4_unicode_520_ci DEFAULT '' COMMENT 'Chat (group) title, is null if chat type is private' AFTER `type`,
+   CHANGE COLUMN `old_id` `old_id` bigint(20) DEFAULT NULL COMMENT 'Unique chat identifier, this is filled when a group is converted to a supergroup' AFTER `updated_at`;
+ 
++-- changed table `chosen_inline_result`
++
++ALTER TABLE `chosen_inline_result`
++  CHANGE COLUMN `id` `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for this entry' FIRST,
++  CHANGE COLUMN `result_id` `result_id` char(255) COLLATE utf8mb4_unicode_520_ci NOT NULL DEFAULT '' COMMENT 'Identifier for this result' AFTER `id`,
++  CHANGE COLUMN `user_id` `user_id` bigint(20) DEFAULT NULL COMMENT 'Unique user identifier' AFTER `result_id`,
++  CHANGE COLUMN `location` `location` char(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Location object, user''s location' AFTER `user_id`,
++  CHANGE COLUMN `inline_message_id` `inline_message_id` char(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Identifier of the sent inline message' AFTER `location`,
++  CHANGE COLUMN `query` `query` text COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The query that was used to obtain the result' AFTER `inline_message_id`;
++
+ -- changed table `conversation`
+ 
+ ALTER TABLE `conversation`
+@@ -79,18 +89,16 @@
+ -- changed table `telegram_update`
+ 
+ ALTER TABLE `telegram_update`
+-  DROP FOREIGN KEY `telegram_update_ibfk_3`,
+-  DROP INDEX `chosen_inline_query_id`,
+-  DROP COLUMN `chosen_inline_query_id`,
++  DROP FOREIGN KEY `telegram_update_ibfk_3`;
++
++ALTER TABLE `telegram_update`
+   CHANGE COLUMN `id` `id` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT 'Update''s unique identifier' FIRST,
+   CHANGE COLUMN `chat_id` `chat_id` bigint(20) DEFAULT NULL COMMENT 'Unique chat identifier' AFTER `id`,
+   CHANGE COLUMN `inline_query_id` `inline_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Unique inline query identifier' AFTER `message_id`,
+-  ADD COLUMN `chosen_inline_result_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Local chosen inline result identifier' AFTER `inline_query_id`,
++  CHANGE COLUMN `chosen_inline_query_id` `chosen_inline_result_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Local chosen inline result identifier' AFTER `inline_query_id`,
+   CHANGE COLUMN `callback_query_id` `callback_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Unique callback query identifier' AFTER `chosen_inline_result_id`,
+   ADD COLUMN `edited_message_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Local edited message identifier' AFTER `callback_query_id`,
+-  ADD KEY `chosen_inline_result_id` (`chosen_inline_result_id`),
+   ADD KEY `edited_message_id` (`edited_message_id`),
+-  ADD CONSTRAINT `telegram_update_ibfk_3` FOREIGN KEY (`chosen_inline_result_id`) REFERENCES `chosen_inline_result` (`id`),
+   ADD CONSTRAINT `telegram_update_ibfk_5` FOREIGN KEY (`edited_message_id`) REFERENCES `edited_message` (`id`);
+ 
+ -- changed table `user`
+@@ -122,21 +130,6 @@
+   CONSTRAINT `botan_shortener_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ 
+--- new table `chosen_inline_result`
+-
+-CREATE TABLE `chosen_inline_result` (
+-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier for this entry',
+-  `result_id` char(255) COLLATE utf8mb4_unicode_520_ci NOT NULL DEFAULT '' COMMENT 'Identifier for this result',
+-  `user_id` bigint(20) DEFAULT NULL COMMENT 'Unique user identifier',
+-  `location` char(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Location object, user''s location',
+-  `inline_message_id` char(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Identifier of the sent inline message',
+-  `query` text COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The query that was used to obtain the result',
+-  `created_at` timestamp NULL DEFAULT NULL COMMENT 'Entry date creation',
+-  PRIMARY KEY (`id`),
+-  KEY `user_id` (`user_id`),
+-  CONSTRAINT `chosen_inline_result_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`)
+-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-
+ -- new table `edited_message`
+ 
+ CREATE TABLE `edited_message` (

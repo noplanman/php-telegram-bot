@@ -10,6 +10,7 @@
 # For DB connection, export these environment variables (with your credentials):
 # $ export TG_DB_HOST="127.0.0.1"
 # $ export TG_DB_NAME="tmp"       # Note, this MUST be a temporary DB, as it will get dropped!
+# $ export TG_DB2_NAME="tmp2"     # Like above, but used for a full migration cycle.
 # $ export TG_DB_USER="root"
 # $ export TG_DB_PASS="root"
 
@@ -52,33 +53,44 @@ for THIS in ${VERSIONS}; do
   fi
   unset IGNORE_BEFORE
 
-  if [[ "${LAST}" == "" ]]; then
-    LAST="${THIS}"
-  fi
-
   # Fetch structure.sql for current version, if not fetched yet.
   if [ ! -f "structure/${THIS}.sql" ]; then
     URL="https://raw.githubusercontent.com/akalongman/php-telegram-bot/${THIS}/structure.sql"
     if [[ "200" != "$(curl -s -I -w "%{http_code}" -o /dev/null "${URL}")" ]]; then
       continue
     fi
+    # Fetch structure.sql and replace all comments using \' with '', which is the proper syntax.
     echo "$(curl "${URL}" 2>/dev/null | sed "s/\\\\'/''/g")" > "structure/${THIS}.sql"
+
+    # Check if there is a patch to be applied to fix structure.sql.
+    if [ -f "patch/${THIS}.patch" ]; then
+        patch "structure/${THIS}.sql" "patch/${THIS}.patch" >/dev/null
+    fi
   fi
 
   # Skip any version that produces errors.
+  # (Was mainly used for debugging and shouldn't occure any more)
   if ! mysql -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" -e "drop database if exists ${TG_DB_NAME}; create database ${TG_DB_NAME}; use ${TG_DB_NAME}; source structure/${THIS}.sql;" 2>/dev/null; then
     echo "❌  Failed to load SQL for version ${THIS}"
     continue
   fi
 
-  if ! mysqldump -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" --no-create-db --no-data --compact --databases "${TG_DB_NAME}" 2>/dev/null > "export/${THIS}.sql"; then
+  if ! mysqldump -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" --no-create-db --no-data --compact "${TG_DB_NAME}" 2>/dev/null > "export/${THIS}.sql" 2>/dev/null; then
     echo "❌  Failed to dump SQL for version ${THIS}"
     continue
   fi
 
-    # Skip the first run.
+    if [[ "${LAST}" == "" ]]; then
+        LAST="${THIS}"
+    fi
+
+    # Skip the first run and set up migration DB instead.
   if [[ "${LAST}" == "${THIS}" ]]; then
-    continue
+      if mysql -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" -e "drop database if exists ${TG_DB2_NAME}; create database ${TG_DB2_NAME}; use ${TG_DB2_NAME}; source export/${THIS}.sql;" 2>/dev/null; then
+          echo "✅  Set up migration test DB with ${THIS}"
+          mysql -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" -e "use ${TG_DB2_NAME}; source dummy_dump.sql;" 2>/dev/null
+      fi
+      continue
   fi
 
   THIS_FILE="export/${THIS}.sql"
@@ -89,13 +101,24 @@ for THIS in ${VERSIONS}; do
     echo "${LAST} -> ${THIS}"
     echo "${DIFF}" > "diff/${LAST}-${THIS}.diff"
 
-    S="✅"
-    if ! php-mysql-diff migrate -o "migration/${LAST}-${THIS}.sql" "${LAST_FILE}" "${THIS_FILE}" &>/dev/null; then
-      S="❌"
+    S="❌"
+    if php-mysql-diff migrate -o "migration/${LAST}-${THIS}.sql" "${LAST_FILE}" "${THIS_FILE}" &>/dev/null; then
+        S="✅"
+        # Check if there is a patch to be applied to fix structure.sql.
+        if [ -f "patch/${LAST}-${THIS}.patch" ]; then
+            patch "migration/${LAST}-${THIS}.sql" "patch/${LAST}-${THIS}.patch" >/dev/null
+        fi
     fi
 
     tput cuu 1 && tput el
-    echo "$S  ${LAST} -> ${THIS}"
+    printf "%s" "$S  ${LAST}  ->  ${THIS}"
+
+    if mysql -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" -e "use ${TG_DB2_NAME}; source migration/${LAST}-${THIS}.sql;" 2>/dev/null; then
+        echo -e "\t🍭  Migration successful!"
+    else
+        echo -e "\t❌  Failed to apply migration!"
+        exit 1
+    fi
 
     LAST="${THIS}"
   fi

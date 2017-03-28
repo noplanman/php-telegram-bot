@@ -1,0 +1,11 @@
+--- structure/0.26.0.sql	2017-03-28 12:25:04.000000000 +0200
++++ structure/0.26.0.sql.fix	2017-03-28 13:04:44.000000000 +0200
+@@ -28,7 +28,7 @@
+   `migrate_to_chat_id` bigint NOT NULL DEFAULT '0' COMMENT 'Migrate to chat identifier.',
+   `update_id` bigint UNSIGNED COMMENT 'The update''s unique identifier.',
+   PRIMARY KEY (`message_id`),
+-  KEY `user_id` (`chat_id`),
++  KEY `chat_id` (`chat_id`),
+   KEY `user_id` (`user_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+ 

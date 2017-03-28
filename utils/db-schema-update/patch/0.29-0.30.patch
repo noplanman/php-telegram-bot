@@ -1,0 +1,38 @@
+--- migration/0.29-0.30.sql	2017-03-28 15:38:23.000000000 +0200
++++ migration/0.29-0.30.sql.fix	2017-03-28 15:38:19.000000000 +0200
+@@ -17,6 +17,17 @@
+   CHANGE COLUMN `created_at` `created_at` timestamp NULL DEFAULT NULL COMMENT 'Entry date creation' AFTER `notes`,
+   CHANGE COLUMN `updated_at` `updated_at` timestamp NULL DEFAULT NULL COMMENT 'Entry date update' AFTER `created_at`;
+ 
++-- changed table `telegram_update`
++
++ALTER TABLE `telegram_update`
++  DROP FOREIGN KEY `telegram_update_ibfk_1`,
++  DROP INDEX `message_id`,
++  ADD COLUMN `chat_id` bigint(20) DEFAULT NULL COMMENT 'Chat identifier.' AFTER `id`,
++  CHANGE COLUMN `message_id` `message_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Unique message identifier' AFTER `chat_id`,
++  CHANGE COLUMN `inline_query_id` `inline_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'The query unique identifier.' AFTER `message_id`,
++  CHANGE COLUMN `chosen_inline_query_id` `chosen_inline_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'The chosen query unique identifier.' AFTER `inline_query_id`,
++  ADD KEY `message_id` (`chat_id`,`message_id`);
++
+ -- changed table `message`
+ 
+ ALTER TABLE `message`
+@@ -55,17 +66,6 @@
+   ADD KEY `reply_to_chat` (`reply_to_chat`),
+   ADD KEY `reply_to_chat_2` (`reply_to_chat`,`reply_to_message`);
+ 
+--- changed table `telegram_update`
+-
+-ALTER TABLE `telegram_update`
+-  DROP FOREIGN KEY `telegram_update_ibfk_1`,
+-  DROP INDEX `message_id`,
+-  ADD COLUMN `chat_id` bigint(20) DEFAULT NULL COMMENT 'Chat identifier.' AFTER `id`,
+-  CHANGE COLUMN `message_id` `message_id` bigint(20) unsigned DEFAULT NULL COMMENT 'Unique message identifier' AFTER `chat_id`,
+-  CHANGE COLUMN `inline_query_id` `inline_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'The query unique identifier.' AFTER `message_id`,
+-  CHANGE COLUMN `chosen_inline_query_id` `chosen_inline_query_id` bigint(20) unsigned DEFAULT NULL COMMENT 'The chosen query unique identifier.' AFTER `inline_query_id`,
+-  ADD KEY `message_id` (`chat_id`,`message_id`);
+-
+ # New Tables
+ 
+ # Disable Foreign Keys Check

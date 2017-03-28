@@ -1,0 +1,13 @@
+--- migration/0.30-0.31.sql	2017-03-28 15:43:22.000000000 +0200
++++ migration/0.30-0.31.sql.fix	2017-03-28 15:43:14.000000000 +0200
+@@ -26,7 +26,9 @@
+ 
+ ALTER TABLE `message`
+   DROP FOREIGN KEY `message_ibfk_6`,
+-  DROP FOREIGN KEY `message_ibfk_7`,
++  DROP FOREIGN KEY `message_ibfk_7`;
++
++ALTER TABLE `message`
+   DROP INDEX `left_chat_participant`,
+   DROP INDEX `new_chat_participant`,
+   DROP COLUMN `new_chat_participant`,
