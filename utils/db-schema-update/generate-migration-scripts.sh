@@ -32,8 +32,8 @@ _required_commands() {
 _required_commands "mysql mysqldump php-mysql-diff jq"
 
 
-if [ -z "${TG_DB_HOST}" ] || [ -z "${TG_DB_NAME}" ] || [ -z "${TG_DB_USER}" ]; then
-    echo "❌  Couldn't find MySQL database connection details."
+if [ -z "${TG_DB_HOST}" ] || [ -z "${TG_DB_NAME}" ] || [ -z "${TG_DB2_NAME}" ] || [ -z "${TG_DB_USER}" ]; then
+    echo "❌  Couldn't find all MySQL database connection details."
     exit 1
 fi
 
