@@ -82,7 +82,9 @@ for THIS in ${VERSIONS}; do
         continue
     fi
 
-    if ! mysqldump -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" --no-create-db --no-data --compact "${TG_DB_NAME}" 2>/dev/null > "export/${THIS}.sql" 2>/dev/null; then
+    if mysqldump -h "${TG_DB_HOST}" -u "${TG_DB_USER}" -p"${TG_DB_PASS}" --no-create-db --compact --no-data "${TG_DB_NAME}" 2>/dev/null > "export/${THIS}.sql" 2>/dev/null; then
+        echo -e "SET FOREIGN_KEY_CHECKS = 0;\n\n$(cat "export/${THIS}.sql")\n\nSET FOREIGN_KEY_CHECKS = 1;" > "export/${THIS}.sql"
+    else
         echo "❌  Failed to dump SQL for version ${THIS}"
         continue
     fi
@@ -105,7 +107,7 @@ for THIS in ${VERSIONS}; do
 
     DIFF="$(diff "${LAST_FILE}" "${THIS_FILE}")"
     if [[ "${DIFF}" != "" ]]; then
-        echo "${LAST} -> ${THIS}"
+        echo "   ${LAST}  ->  ${THIS}"
         echo "${DIFF}" > "diff/${LAST}-${THIS}.diff"
 
         S="❌"
